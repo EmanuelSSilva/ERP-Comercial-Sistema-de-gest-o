@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  GERENTE
+  VENDEDOR
+  ESTOQUISTA
+  FINANCEIRO
+}
+
+enum InventoryMovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+enum PurchaseStatus {
+  PENDENTE
+  RECEBIDA
+  CANCELADA
+}
+
+enum SaleStatus {
+  ORCAMENTO
+  FINALIZADA
+  CANCELADA
+}
+
+enum PaymentMethod {
+  PIX
+  DINHEIRO
+  CREDITO
+  DEBITO
+  BOLETO
+}
+
+enum CashRegisterStatus {
+  ABERTO
+  FECHADO
+}
+
+enum ReceivableStatus {
+  PENDENTE
+  RECEBIDO
+  ATRASADO
+}
+
+enum PayableStatus {
+  PENDENTE
+  PAGO
+  ATRASADO
+}
+
+model User {
+  id                 String              @id @default(uuid())
+  nome               String
+  email              String              @unique
+  senha              String
+  role               UserRole            @default(VENDEDOR)
+  ativo              Boolean             @default(true)
+  ultimoLogin        DateTime?
+  refreshTokens      RefreshToken[]
+  sales              Sale[]              @relation("SellerSales")
+  inventoryMovements InventoryMovement[]
+  cashRegisters      CashRegister[]
+  auditLogs          AuditLog[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id          String              @id @default(uuid())
+  nome        String
+  cpfCnpj     String              @unique
+  email       String?
+  telefone    String?
+  endereco    String?
+  cidade      String?
+  estado      String?
+  observacoes String?
+  ativo       Boolean             @default(true)
+  sales       Sale[]
+  receivables AccountReceivable[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model Supplier {
+  id          String           @id @default(uuid())
+  razaoSocial String
+  cpfCnpj     String           @unique
+  email       String?
+  telefone    String?
+  endereco    String?
+  observacoes String?
+  ativo       Boolean          @default(true)
+  purchases   Purchase[]
+  payables    AccountPayable[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  nome      String    @unique
+  descricao String?
+  ativo     Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id                 String              @id @default(uuid())
+  codigo             String              @unique
+  nome               String
+  descricao          String?
+  categoriaId        String?
+  precoCompra        Decimal             @db.Decimal(12, 2)
+  precoVenda         Decimal             @db.Decimal(12, 2)
+  estoqueAtual       Int                 @default(0)
+  estoqueMinimo      Int                 @default(0)
+  ativo              Boolean             @default(true)
+  category           Category?           @relation(fields: [categoriaId], references: [id])
+  inventoryMovements InventoryMovement[]
+  saleItems          SaleItem[]
+  purchaseItems      PurchaseItem[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model InventoryMovement {
+  id           String                @id @default(uuid())
+  produtoId    String
+  tipo         InventoryMovementType
+  quantidade   Int
+  motivo       String
+  usuarioId    String
+  product      Product               @relation(fields: [produtoId], references: [id])
+  user         User                  @relation(fields: [usuarioId], references: [id])
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model Purchase {
+  id           String           @id @default(uuid())
+  fornecedorId String
+  valorTotal   Decimal          @db.Decimal(12, 2)
+  status       PurchaseStatus   @default(PENDENTE)
+  supplier     Supplier         @relation(fields: [fornecedorId], references: [id])
+  items        PurchaseItem[]
+  payable      AccountPayable?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model PurchaseItem {
+  id            String   @id @default(uuid())
+  purchaseId    String
+  produtoId     String
+  quantidade    Int
+  valorUnitario Decimal  @db.Decimal(12, 2)
+  purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [produtoId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Sale {
+  id             String             @id @default(uuid())
+  clienteId      String?
+  vendedorId     String
+  valorTotal     Decimal            @db.Decimal(12, 2)
+  desconto       Decimal            @default(0) @db.Decimal(12, 2)
+  formaPagamento PaymentMethod
+  status         SaleStatus          @default(ORCAMENTO)
+  customer       Customer?           @relation(fields: [clienteId], references: [id])
+  seller         User                @relation("SellerSales", fields: [vendedorId], references: [id])
+  items          SaleItem[]
+  receivable     AccountReceivable?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model SaleItem {
+  id            String   @id @default(uuid())
+  saleId        String
+  produtoId     String
+  quantidade    Int
+  valorUnitario Decimal  @db.Decimal(12, 2)
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [produtoId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CashRegister {
+  id            String             @id @default(uuid())
+  usuarioId     String
+  saldoInicial  Decimal            @db.Decimal(12, 2)
+  saldoFinal    Decimal?           @db.Decimal(12, 2)
+  status        CashRegisterStatus @default(ABERTO)
+  dataAbertura  DateTime           @default(now())
+  dataFechamento DateTime?
+  user          User               @relation(fields: [usuarioId], references: [id])
+  movements     CashMovement[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model CashMovement {
+  id             String       @id @default(uuid())
+  cashRegisterId String
+  tipo           String
+  valor          Decimal      @db.Decimal(12, 2)
+  descricao      String?
+  cashRegister   CashRegister @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model AccountReceivable {
+  id         String           @id @default(uuid())
+  clienteId  String?
+  saleId     String?          @unique
+  valor      Decimal          @db.Decimal(12, 2)
+  vencimento DateTime
+  status     ReceivableStatus @default(PENDENTE)
+  customer   Customer?        @relation(fields: [clienteId], references: [id])
+  sale       Sale?            @relation(fields: [saleId], references: [id])
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model AccountPayable {
+  id           String        @id @default(uuid())
+  fornecedorId String?
+  purchaseId   String?       @unique
+  valor        Decimal       @db.Decimal(12, 2)
+  vencimento   DateTime
+  status       PayableStatus @default(PENDENTE)
+  supplier     Supplier?     @relation(fields: [fornecedorId], references: [id])
+  purchase     Purchase?     @relation(fields: [purchaseId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

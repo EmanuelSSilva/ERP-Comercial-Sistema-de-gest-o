@@ -1,0 +1,49 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+build/
+
+# Ambiente — NUNCA subir segredos
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+
+# Logs
+logs/
+*.log
+backend-dev.out.log
+backend-dev.err.log
+dev-server.out.log
+dev-server.err.log
+
+# Banco local
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+*.sqlite
+
+# Coverage / testes
+coverage/
+.nyc_output/
+
+# Cache
+.cache/
+.parcel-cache/
+.vite/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Prisma migrations lock (manter migrations, ignorar só o lock de dev)
+backend/prisma/migrations/**/migration_lock.toml
