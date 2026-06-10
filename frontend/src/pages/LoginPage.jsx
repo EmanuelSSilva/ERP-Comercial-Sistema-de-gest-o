@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export function LoginPage() {
   const { login, isAuthenticated } = useAuth();
-  const { register, handleSubmit } = useForm({ defaultValues: { email: 'admin@erp.com', senha: 'admin123' } });
+  const { register, handleSubmit } = useForm();
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
